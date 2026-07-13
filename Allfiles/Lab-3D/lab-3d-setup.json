@@ -1,0 +1,315 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "SC-500 Lab 3D - Monitor AI Security with Defender for Cloud - Setup Template. This template provisions an Azure AI Foundry hub and project with Azure OpenAI service (gpt-5.4-mini) in an intentionally unsecured state with NO content filters, enables Defender for AI Services, and prepares the environment for adversarial traffic generation. IMPORTANT: After deployment, run generate-adversarial-traffic.ps1 and wait 24+ hours before lab delivery for Defender findings to populate."
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "allowedValues": [
+        "eastus",
+        "eastus2",
+        "westus",
+        "westus2",
+        "southcentralus",
+        "northcentralus",
+        "westeurope",
+        "northeurope",
+        "australiaeast",
+        "southeastasia"
+      ],
+      "metadata": {
+        "description": "Azure region for all resources. Use a region that supports Azure OpenAI and Azure AI Foundry."
+      }
+    },
+    "labInstanceId": {
+      "type": "string",
+      "defaultValue": "@lab.LabInstance.Id",
+      "minLength": 1,
+      "maxLength": 8,
+      "metadata": {
+        "description": "The Skillable lab instance ID. Used to generate globally unique resource names. Auto-populated by Skillable using @lab.LabInstance.Id variable."
+      }
+    },
+    "enableDefenderForAI": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether to enable Defender for AI Services on the subscription. Set to true for production lab delivery."
+      }
+    }
+  },
+  "variables": {
+    "resourceGroupName": "sc500-lab3d-rg",
+    "openAiName": "[concat('sc500-lab3d-ai-', parameters('labInstanceId'))]",
+    "aiHubName": "[concat('sc500-lab3d-hub-', parameters('labInstanceId'))]",
+    "aiProjectName": "sc500-lab3d-foundry",
+    "storageAccountName": "[concat('sc500lab3d', parameters('labInstanceId'))]",
+    "keyVaultName": "[concat('sc500-3d-kv-', parameters('labInstanceId'))]",
+    "appInsightsName": "sc500-lab3d-insights",
+    "logAnalyticsName": "sc500-lab3d-logs",
+    "modelDeploymentName": "gpt-5.4-mini",
+    "modelName": "gpt-5.4-mini",
+    "modelVersion": "2026-03-17"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "lab": "SC-500-Lab-3D",
+        "purpose": "AI Security Monitoring with Defender for Cloud",
+        "security-state": "intentionally-unsecured"
+      },
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "sc500-lab3d-infrastructure",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "parameters": {
+          "location": { "value": "[parameters('location')]" },
+          "openAiName": { "value": "[variables('openAiName')]" },
+          "aiHubName": { "value": "[variables('aiHubName')]" },
+          "aiProjectName": { "value": "[variables('aiProjectName')]" },
+          "storageAccountName": { "value": "[variables('storageAccountName')]" },
+          "keyVaultName": { "value": "[variables('keyVaultName')]" },
+          "appInsightsName": { "value": "[variables('appInsightsName')]" },
+          "logAnalyticsName": { "value": "[variables('logAnalyticsName')]" },
+          "modelDeploymentName": { "value": "[variables('modelDeploymentName')]" },
+          "modelName": { "value": "[variables('modelName')]" },
+          "modelVersion": { "value": "[variables('modelVersion')]" }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "location": { "type": "string" },
+            "openAiName": { "type": "string" },
+            "aiHubName": { "type": "string" },
+            "aiProjectName": { "type": "string" },
+            "storageAccountName": { "type": "string" },
+            "keyVaultName": { "type": "string" },
+            "appInsightsName": { "type": "string" },
+            "logAnalyticsName": { "type": "string" },
+            "modelDeploymentName": { "type": "string" },
+            "modelName": { "type": "string" },
+            "modelVersion": { "type": "string" }
+          },
+          "variables": {
+            "openAiEndpoint": "[concat('https://', parameters('openAiName'), '.openai.azure.com')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2022-10-01",
+              "name": "[parameters('logAnalyticsName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": { "name": "PerGB2018" },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[parameters('appInsightsName')]",
+              "location": "[parameters('location')]",
+              "kind": "web",
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+              ],
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "sku": { "name": "Standard_LRS" },
+              "kind": "StorageV2",
+              "properties": {
+                "accessTier": "Hot",
+                "allowBlobPublicAccess": false,
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                  "services": {
+                    "blob": { "enabled": true },
+                    "file": { "enabled": true }
+                  },
+                  "keySource": "Microsoft.Storage"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-02-01",
+              "name": "[parameters('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": false,
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 7,
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[parameters('openAiName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "S0"
+              },
+              "kind": "OpenAI",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "customSubDomainName": "[parameters('openAiName')]",
+                "publicNetworkAccess": "Enabled",
+                "networkAcls": {
+                  "defaultAction": "Allow"
+                },
+                "disableLocalAuth": false
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[concat(parameters('openAiName'), '/', parameters('modelDeploymentName'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAiName'))]"
+              ],
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": 20
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "[parameters('modelName')]",
+                  "version": "[parameters('modelVersion')]"
+                },
+                "versionUpgradeOption": "OnceNewDefaultVersionAvailable",
+                "raiPolicyName": "Microsoft.DefaultV2"
+              }
+            },
+            {
+              "type": "Microsoft.MachineLearningServices/workspaces",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[parameters('aiHubName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "Hub",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+                "[resourceId('Microsoft.Insights/components', parameters('appInsightsName'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAiName'))]"
+              ],
+              "properties": {
+                "friendlyName": "SC500 Lab 3D AI Hub",
+                "description": "Azure AI Foundry Hub for SC-500 Lab 3D - Monitor AI Security with Defender for Cloud",
+                "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                "keyVault": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+                "applicationInsights": "[resourceId('Microsoft.Insights/components', parameters('appInsightsName'))]",
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.MachineLearningServices/workspaces",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[parameters('aiProjectName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "Project",
+              "dependsOn": [
+                "[resourceId('Microsoft.MachineLearningServices/workspaces', parameters('aiHubName'))]"
+              ],
+              "properties": {
+                "friendlyName": "sc500-lab3d-foundry",
+                "description": "Azure AI Foundry Project for SC-500 Lab 3D - Intentionally unsecured for Defender monitoring",
+                "hubResourceId": "[resourceId('Microsoft.MachineLearningServices/workspaces', parameters('aiHubName'))]",
+                "publicNetworkAccess": "Enabled"
+              }
+            }
+          ],
+          "outputs": {
+            "openAiEndpoint": {
+              "type": "string",
+              "value": "[variables('openAiEndpoint')]"
+            },
+            "openAiKey": {
+              "type": "string",
+              "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAiName')), '2024-04-01-preview').key1]"
+            },
+            "modelEndpointUrl": {
+              "type": "string",
+              "value": "[concat(variables('openAiEndpoint'), '/openai/deployments/', parameters('modelDeploymentName'), '/chat/completions?api-version=2024-02-01')]"
+            },
+            "aiProjectId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.MachineLearningServices/workspaces', parameters('aiProjectName'))]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[variables('resourceGroupName')]"
+    },
+    "openAiAccountName": {
+      "type": "string",
+      "value": "[variables('openAiName')]"
+    },
+    "aiHubName": {
+      "type": "string",
+      "value": "[variables('aiHubName')]"
+    },
+    "aiProjectName": {
+      "type": "string",
+      "value": "[variables('aiProjectName')]"
+    },
+    "modelDeploymentName": {
+      "type": "string",
+      "value": "[variables('modelDeploymentName')]"
+    },
+    "nextSteps": {
+      "type": "string",
+      "value": "CRITICAL POST-DEPLOYMENT STEPS: 1) Enable Defender for AI Services in Microsoft Defender for Cloud. 2) Navigate to Azure AI Foundry portal (ai.azure.com) and verify NO content filter is assigned to gpt-5.4-mini (or set to 'None'). 3) Run generate-adversarial-traffic.ps1 with the endpoint URL and API key from deployment outputs. 4) WAIT AT LEAST 24 HOURS after running the script before lab delivery. 5) Verify at least 2 security findings appear in Defender for Cloud > Data and AI security before marking environment as ready."
+    }
+  }
+}
