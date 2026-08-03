@@ -17,7 +17,7 @@ lab:
 
 1. **Azure portal** (`https://portal.azure.com`) を開きます。
 
-1. **User-1** 管理者の役割でログインします。
+1. **User1** の管理者の役割でログオンします。
 
 1. **検索**バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
    
@@ -79,7 +79,7 @@ lab:
 
 ## WAF 検出モードを検証する
 
-1. 全体管理者アカウントで [Azure portal](https://portal.azure.com) にサインインします。
+1. [Azure portal](https://portal.azure.com) に **User1** アカウントでサインインします。
 
 1. **[アプリケーション ゲートウェイ]** を開き、**sc500-lab4c-agw** を選択します。
 

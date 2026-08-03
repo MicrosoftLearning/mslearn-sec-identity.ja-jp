@@ -55,7 +55,7 @@
 6. パラメーターを構成します。
    - **サブスクリプション**: ラボのサブスクリプションを選択します
    - **場所**: Azure OpenAI がサポートされている Azure リージョンを選択します (例: 米国東部、西ヨーロッパ)
-   - **ラボ インスタンス ID**: Skillable 変数 `@lab.LabInstance.Id` を使うか、6 から 8 文字の一意識別子を入力します
+   - **ラボ インスタンス ID**: **空欄のままにして**、サブスクリプション ID から 8 文字のハッシュを自動生成します。 特定のオーバーライドが必要な場合のみ、値を入力します。
    - **AI 用 Defender を有効にする**: `true` のままにします (サブスクリプションで AI サービス用 Defender が有効になる)
 7. **[確認および作成]**、**[作成]** の順にクリックします
 
@@ -66,13 +66,12 @@
 ```bash
 # Set variables
 LOCATION="eastus"
-LAB_INSTANCE_ID="12345678"  # Use a unique 8-digit ID or Skillable @lab.LabInstance.Id
 
-# Deploy the template
+# Deploy the template (labInstanceId defaults to a hash of the subscription ID)
 az deployment sub create \
   --location $LOCATION \
   --template-file lab-3d-setup.json \
-  --parameters location=$LOCATION labInstanceId=$LAB_INSTANCE_ID
+  --parameters location=$LOCATION
 ```
 
 ### オプション 3: PowerShell を使ってデプロイする
@@ -80,14 +79,12 @@ az deployment sub create \
 ```powershell
 # Set variables
 $Location = "eastus"
-$LabInstanceId = "12345678"  # Use a unique 8-digit ID or Skillable @lab.LabInstance.Id
 
-# Deploy the template
+# Deploy the template (labInstanceId defaults to a hash of the subscription ID)
 New-AzSubscriptionDeployment `
   -Location $Location `
   -TemplateFile .\lab-3d-setup.json `
-  -location $Location `
-  -labInstanceId $LabInstanceId
+  -location $Location
 ```
 
 ## デプロイ後の構成 (重要)

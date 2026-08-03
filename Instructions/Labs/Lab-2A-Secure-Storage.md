@@ -13,21 +13,19 @@ lab:
 
 # ラボのセットアップ
 
-ラボ プロファイル - https://labondemand.com/LabProfile/217879
-
-このラボは、クラウド スライスで実行されます。 次のステップに従って、ラボのシナリオを構築してください。
+このラボはクラウド スライス上で行います。 次のステップに従って、ラボのシナリオに必要な環境を構築してください。
 
 1. **Azure portal** (`https://portal.azure.com`) を開きます。
 
-1. **User-1** 管理者ロールでログインします。
+1. **User-1** 管理者の役割でログインします。
 
 1. **検索**バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
    
 1. **[Build your own template in the editor] \(エディターで独自のテンプレートをビルド\)** を選択します。
 
-1. メニューで、**[ファイルの読み込み]** を選択します。
+1. メニューの **[ファイルを読み込む]** を選択します。
 
-1. デスクトップ フォルダーから **lab-2a-setup.json** ファイルを選択します。
+1. ラボ VM の **F:\AllFiles\Lab-2A** フォルダーからファイル **lab-2a-setup.json** を選択します。
 
 1. **[保存]** を選択します。
 
@@ -64,11 +62,13 @@ AI のトレーニング データとモデル出力を含むストレージ ア
 
 `training-data` コンテナーに、24 時間の読み取りアクセスを許可するストアド アクセス ポリシーを作成し、そのポリシーを参照する SAS トークンを生成します。
 
+> **注**: 事前プロビジョニングされたストレージ アカウント名は **`sc500lab2a`** で始まり、その後にラボ サブスクリプションに固有の 8 文字のサフィックスが続きます。 このラボ全体で、`<storage-account-name>` はそのアカウントを参照します。 `sc500-lab2a-rg` リソース グループにはストレージ アカウントが 1 つだけ含まれています。このラボで `<storage-account-name>` を指定する必要がある場合はいつでもそのストレージ アカウントを選択します。
+
 1. **User-1** の資格情報を使用して、Azure portal (`https://portal.azure.com`) にサインインします。
 
 1. 検索バーで、「**ストレージ アカウント**」を検索して選択します。
 
-1. [**sc500lab2a@lab.LabInstance.Id**] を選択します。
+1. 名前が **`sc500lab2a`** で始まるストレージ アカウントを選択します (`sc500-lab2a-rg` 内には 1 つしかありません)。
 
 1. 左側のメニューの **[データ ストレージ]** で、**[コンテナー]** を選択します。
 
@@ -127,7 +127,16 @@ AI のトレーニング データとモデル出力を含むストレージ ア
     SAS_TOKEN="<paste your SAS token here>"
     ```
 
-1. 最初の数文字をチェックして、変数が設定されていることを確認します。
+1. ストレージ アカウント名を変数にキャプチャします。 `sc500-lab2a-rg` リソース グループに含まれているストレージ アカウントは 1 つだけであるため、このコマンドはデプロイされた名前を直接読み込みます:
+
+    ```bash
+    STORAGE_NAME=$(az storage account list --resource-group sc500-lab2a-rg --query "[0].name" -o tsv)
+    echo "Storage account: $STORAGE_NAME"
+    ```
+
+    出力には実際のアカウント名 (例: `sc500lab2aabc12345`) が表示されます。 このラボのすべての curl コマンドで `$STORAGE_NAME` を再利用します。
+
+1. 最初の数文字をチェックして、SAS 変数が設定されていることを確認します。
 
     ```bash
     echo "${SAS_TOKEN:0:30}..."
@@ -141,7 +150,7 @@ AI のトレーニング データとモデル出力を含むストレージ ア
 
     ```bash
     curl -s -w "\n--- HTTP Status: %{http_code} ---" \
-      "https://sc500lab2a@lab.LabInstance.Id.blob.core.windows.net/training-data/sample-1.json?${SAS_TOKEN}"
+      "https://${STORAGE_NAME}.blob.core.windows.net/training-data/sample-1.json?${SAS_TOKEN}"
     ```
 
     応答が `--- HTTP Status: 200 ---` で終わり、本文にファイルの JSON コンテンツが含まれていることを確認します。 これにより、SAS トークンが有効であり、ストレージ アカウントが現在すべてのネットワークからの読み取りアクセスを許可していることが確認されます。
@@ -154,7 +163,7 @@ AI のトレーニング データとモデル出力を含むストレージ ア
 
 ストレージ アカウントを、**[すべてのネットワークを許可]** から **[選択されたネットワーク]** に変更し、事前にプロビジョニングされたサブネット `sc500-lab2a-vnet` を唯一の承認されたネットワークとして追加します。 その後、**[Azure サービスを許可する]** 例外を無効にします。無効にしなければ、ネットワーク メンバーシップに関係なく、Azure でホストされたあらゆるサービスのバイパスが作成されます。
 
-1. **sc500lab2a@lab.LabInstance.Id** の左側のメニューで、**[セキュリティとネットワーク]** の下にある **[ネットワーク]** を選択します。
+1. ストレージ アカウント (**`<storage-account-name>`**) の左側のメニューで、**[セキュリティとネットワーク]** の下にある **[ネットワーク]** を選択します。
 
 1. **[パブリック アクセス]** タブを選択し、**[管理]** を選択します。
 
@@ -190,30 +199,32 @@ AI のトレーニング データとモデル出力を含むストレージ ア
 
 VNet のみの制限を適用した状態で、承認された VNet の外部で実行される Cloud Shell からのストレージ アカウントへのアクセスがブロックされることを確認します。
 
-1. **[Cloud Shell]** セッションに戻ります (または、このセッションが閉じている場合は再度開きます)。 `$SAS_TOKEN` 変数がまだ設定されたままであるかどうかを確認します。
+1. **[Cloud Shell]** セッションに戻ります (または、このセッションが閉じている場合は再度開きます)。 変数 `$SAS_TOKEN` および `$STORAGE_NAME` がまだ設定されたままであるかどうかを確認します。
 
     ```bash
     echo "${SAS_TOKEN:0:30}..."
+    echo "Storage account: $STORAGE_NAME"
     ```
 
-    出力が `...` で、その前に何も示されない場合、セッションはタイムアウトし、変数はクリアされました。 変数を再度割り当てます。
+    出力が空または `...` の場合、セッションはタイムアウトし、変数はクリアされました。 変数を再割当します。
 
     ```bash
     SAS_TOKEN="<paste your SAS token here>"
+    STORAGE_NAME=$(az storage account list --resource-group sc500-lab2a-rg --query "[0].name" -o tsv)
     ```
 
-1. 同じ BLOB 読み取り要求を実行します。 Cloud Shell を再度開く場合、まず `$SAS_TOKEN` を再割り当てします。
+1. 同じ BLOB 読み取り要求を実行します。
 
     ```bash
     curl -s -w "\n--- HTTP Status: %{http_code} ---" \
-      "https://sc500lab2a@lab.LabInstance.Id.blob.core.windows.net/training-data/sample-1.json?${SAS_TOKEN}"
+      "https://${STORAGE_NAME}.blob.core.windows.net/training-data/sample-1.json?${SAS_TOKEN}"
     ```
 
     応答の本文に `<Code>AuthorizationFailure</Code>` が含まれており、応答が `--- HTTP Status: 403 ---` で終了することを確認します。 `AuthorizationFailure` は、要求がネットワーク ファイアウォールによってブロックされる場合に Azure Storage から返されるエラー コードです。SAS トークンは有効ですが、要求元 (Cloud Shell の IP) は、承認されたネットワークの一覧に表示されません。 これにより、ファイアウォールがアクティブであることが確認されます。
 
 1. Cloud Shellを閉じます。
 
-1. `sc500lab2a@lab.LabInstance.Id` の左側のメニューで、**[ストレージ ブラウザー]** を選択します。
+1. ストレージ アカウント (`<storage-account-name>`) の左側のメニューで、**[ストレージ ブラウザー]** を選択します。
 
 1. **[BLOB コンテナー]**、**[training-data]** の順に選択します。
 
@@ -225,7 +236,7 @@ VNet のみの制限を適用した状態で、承認された VNet の外部で
 
 ## Defender for Storage を有効にする
 
-Defender for Storage は、ストレージ アカウントの脅威検出を提供し、異常なアクセス パターン、マルウェアのアップロード、データ流出の試行を検出します。 これを `sc500lab2a@lab.LabInstance.Id` のリソース レベルで有効にします。
+Defender for Storage は、ストレージ アカウントの脅威検出を提供し、異常なアクセス パターン、マルウェアのアップロード、データ流出の試行を検出します。 これを `<storage-account-name>` のリソース レベルで有効にします。
 
 Defender for Storage のマルウェアスキャン機能では、Azure Event Grid を使用してスキャン結果をルーティングします。 Event Grid リソース プロバイダーは、Defender for Storage を有効にする前にサブスクリプションに登録する必要があります。そうしなければ、有効化が部分的に失敗します。
 
@@ -247,7 +258,7 @@ Defender for Storage のマルウェアスキャン機能では、Azure Event Gr
 
 1. Cloud Shellを閉じます。
 
-1. `sc500lab2a@lab.LabInstance.Id` の左側のメニューで、**[セキュリティとネットワーク]** の下にある **[Microsoft Defender for Cloud] ** を選択します。
+1. ストレージ アカウント (`<storage-account-name>`) の左側のメニューで、**[セキュリティとネットワーク]** の下にある **[Microsoft Defender for Cloud] ** を選択します。
 
 1. **[このストレージ アカウントでストレージを有効にする]** を選択します。
 
@@ -261,7 +272,7 @@ Defender for Storage のマルウェアスキャン機能では、Azure Event Gr
 
 診断ログは、ストレージ アカウントに対する管理プレーンの操作 (構成の変更、アクセス ポリシーの変更、Defender for Storage のアラートなど) をキャプチャし、保持とクエリ実行のために、それらを Log Analytics ワークスペースに転送します。
 
-1. **sc500lab2a@lab.LabInstance.Id** の左側のメニューで、**[監視]** の下にある **[診断設定]** を選択します。
+1. ストレージ アカウント (**`<storage-account-name>`**) の左側のメニューで、**[監視]** の下にある **[診断設定]** を選択します。
 
     このページには、ストレージ アカウントとそのサブサービスの診断設定が表示されます。 **[StorageRead]**、**[StorageWrite]**、**[StorageDelete]** は BLOB レベルのログ カテゴリであるため、BLOB のサブサービス レベルで設定を構成する必要があります。
 
@@ -276,7 +287,7 @@ Defender for Storage のマルウェアスキャン機能では、Azure Event Gr
     | **診断設定の名前** | `sc500-storage-diag` |
     | **ログ** | **[StorageRead]**、**[StorageWrite]**、**[StorageDelete]** を選択します |
     | **宛先** | **[Log Analytics ワークスペースに送信する]** を選択します |
-    | **サブスクリプション** | お使いのラボ サブスクリプション |
+    | **サブスクリプション** | ラボのサブスクリプション |
     | **Log Analytics ワークスペース** | sc500-lab2a-log |
 
     > **注**: このページには、状態が **[無効]** の **[診断設定 (クラシック)]** 行も表示される場合があります。 この行は無視してください。これはレガシ構成モデルです。 その上の **[+ 診断設定の追加]** ボタンを選択すると、正しい Azure Monitor バージョンが使用されます。

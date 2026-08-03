@@ -21,7 +21,7 @@
   - 既定のコンテンツ フィルターで初期構成済み (カスタム ガードレールなし)
   
 - **Azure AI Foundry ハブ** (`sc500-lab3c-hub-{instanceId}`)
-  - Foundry プロジェクト用のハブ ワークスペース
+  - Foundry プロジェクトのハブ ワークスペース
   
 - **Azure AI Foundry プロジェクト** (`sc500-lab3c-foundry`)
   - 学生が Content Safety ガードレールを構成するプロジェクト ワークスペース
@@ -45,14 +45,14 @@
 ### オプション 1: Azure portal を使ってデプロイする (Skillable ラボに推奨)
 
 1. [Azure portal](https://portal.azure.com) にサインインする
-2. **[カスタム テンプレートのデプロイ]** を見つけます
-3. **[エディターで独自のテンプレートを作成する]** を選びます
+2. **[カスタム テンプレートのデプロイ]** を検索します
+3. **[エディターで独自のテンプレートを作成する]** を選択します
 4. **[ファイルの読み込み]** をクリックして `lab-3c-setup.json` をアップロードします
 5. **[保存]** をクリックします
 6. パラメーターを構成します。
-   - **サブスクリプション**: ラボのサブスクリプションを選びます
-   - **場所**: Azure OpenAI がサポートされている Azure リージョンを選びます (例: 米国東部、西ヨーロッパ)
-   - **ラボ インスタンス ID**:Skillable 変数 `@lab.LabInstance.Id` を使うか、6 から 8 文字の一意識別子を入力します
+   - **サブスクリプション**: ラボのサブスクリプションを選択します
+   - **場所**: Azure OpenAI がサポートされている Azure リージョンを選択します (例: 米国東部、西ヨーロッパ)
+   - **ラボ インスタンス ID**: **空欄のままにして**、サブスクリプション ID から 8 文字のハッシュを自動生成します。 特定のオーバーライドが必要な場合のみ、値を入力します。
    - **発行元のメール アドレス**: 既定値のままにするか、カスタマイズします
    - **発行元名**: 既定値のままにするか、カスタマイズします
 7. **[確認して作成]**、**[作成]** の順にクリックします
@@ -64,13 +64,12 @@
 ```bash
 # Set variables
 LOCATION="eastus"
-LAB_INSTANCE_ID="12345678"  # Use a unique 8-digit ID or Skillable @lab.LabInstance.Id
 
-# Deploy the template
+# Deploy the template (labInstanceId defaults to a hash of the subscription ID)
 az deployment sub create \
   --location $LOCATION \
   --template-file lab-3c-setup.json \
-  --parameters location=$LOCATION labInstanceId=$LAB_INSTANCE_ID
+  --parameters location=$LOCATION
 ```
 
 ### オプション 3: PowerShell を使ってデプロイする
@@ -78,14 +77,12 @@ az deployment sub create \
 ```powershell
 # Set variables
 $Location = "eastus"
-$LabInstanceId = "12345678"  # Use a unique 8-digit ID or Skillable @lab.LabInstance.Id
 
-# Deploy the template
+# Deploy the template (labInstanceId defaults to a hash of the subscription ID)
 New-AzSubscriptionDeployment `
   -Location $Location `
   -TemplateFile .\lab-3c-setup.json `
-  -location $Location `
-  -labInstanceId $LabInstanceId
+  -location $Location
 ```
 
 ## デプロイ後の構成

@@ -1,19 +1,16 @@
 ---
 lab:
   title: Privileged Identity Management の構成
-  description: PIM 対応のロールの割り当て、アクティブ化設定、承認ワークフローを構成し、Just-In-Time の特権アクセスを適用し、Azure リソースでマネージド ID を有効にします。
+  description: PIM 対応のロールの割り当て、アクティブ化設定、承認ワークフローを構成し、Microsoft Entra ロールへの Just-In-Time 特権アクセスを適用します。
   level: 300
   duration: 45
   islab: true
   primarytopics:
     - Microsoft Entra Privileged Identity Management
     - Conditional Access
-    - Managed Identity
 ---
 
 # ラボのセットアップ
-
-ラボ プロファイル - https://labondemand.com/LabProfile/217878
 
 このラボは特別な構成が不要な M365 テナント上で動作します。
 
@@ -23,7 +20,7 @@ lab:
 
 Privileged Identity Management (PIM) は、Azure および Microsoft Entra のロールに対して Just-In-Time (JIT) 特権アクセスを可能にする Microsoft Entra ID サービスです。 永続的な攻撃面が発生する常任管理者アクセスを許可する代わりに、PIM は承認と理由の要件は任意で、ユーザーに限られた期間の上位アクセスの要求とアクティブ化を求めます。
 
-このラボでは、条件付きアクセス管理者ロールのための PIM を構成し、承認ベースのアクティブ化ワークフローを適用し、上位アクセスが期待どおりに動作するかを検証してから、Azure App Service 上でシステム割り当てマネージド ID を有効化します。
+このラボでは、条件付きアクセス管理者ロールの PIM を構成し、承認ベースのアクティブ化ワークフローを適用し、昇格されたアクセスが想定どおりに動作することを検証します。
 
 このラボでは、次のことを行います。
 
@@ -31,7 +28,6 @@ Privileged Identity Management (PIM) は、Azure および Microsoft Entra の�
 - 制限時間、理由の要件、承認者を含めてアクティブ化設定を構成する
 - 2 つの別々のアカウントを使用してロールのアクティブ化を要求して承認する
 - アクティブ化されたロールによって期待されたアクセスが許可されることを確認する
-- 事前にプロビジョニングされた App Service でシステム割り当てマネージド ID を有効にする
 - ロールを非アクティブ化して Just-In-Time アクセス期間を終了する
 
 この演習の所要時間は約 **45** 分です。
@@ -40,9 +36,9 @@ Privileged Identity Management (PIM) は、Azure および Microsoft Entra の�
 
 ## PIM 対応のロールを割り当てる
 
-このセクションでは、条件付きアクセス管理者ロールを適格な割り当てとして **sc500-user01** に割り当てます。 適格な割り当ては、ユーザーがそのロールを永続的に保持するわけではなく、必要なたびに要求してアクティブ化しなければならないことを意味します。
+このセクションでは、条件付きアクセス管理者ロールを資格のある割り当てとして **Adele Vance** に割り当てます。 適格な割り当ては、ユーザーがそのロールを永続的に保持するわけではなく、必要なたびに要求してアクティブ化しなければならないことを意味します。
 
-1. `https://entra.microsoft.com` で **[管理者]** の資格情報を使用して Microsoft Entra 管理センターにサインインします。
+1. Microsoft Entra 管理センター (`https://entra.microsoft.com`) に **MOD 管理者** (サインイン名 `admin@<your-tenant>.onmicrosoft.com` と [リソース] タブの **[ユーザー パスワード]**) としてサインインします。
 
 1. 左側のナビゲーションで、**[ID ガバナンス]** を展開し、**[Privileged Identity Management]** を選択します。
 
@@ -94,46 +90,46 @@ PIM のロール設定によって、アクティブ化の期間、理由が必�
 1. ロール設定のページに次の内容が表示されたことを確認します。
     - [最大アクティブ化期間]: **[1 時間]**
     - [承認が必要]: **[はい]**
-    - [承認者]: **[sc500-approver]**
+    - 承認者: **MOD 管理者**
 
 ---
 
 ## ロールのアクティブ化要求
 
-ここで、**[sc500-user01]** としてサインインし、ロールのアクティブ化要求を送信します。 これで、特定のタスクを実行するために一時的な上位アクセスが必要なユーザーがシミュレートされます。
+次に、**Adele Vance** としてサインインし、ロールのアクティブ化要求を送信します。 これで、特定のタスクを実行するために一時的な上位アクセスが必要なユーザーがシミュレートされます。
 
 1. **InPrivate** または**プライベート** ブラウザー ウィンドウを開きます。
 
-1. `https://entra.microsoft.com` を使用して Entra 管理センターに移動し、**[リソース]** タブの資格情報を使用して **Adele Vance** としてサインインします。
+1. `https://entra.microsoft.com` を使用して Entra 管理センターに移動します。 **Adele Vance** (サインイン名 `AdeleV@<your-tenant>.OnMicrosoft.com` と [リソース] タブの **[ユーザー パスワード]**) としてサインインします。
 
-2. 左側のナビゲーションで、**[ID ガバナンス]** を展開し、**[Privileged Identity Management]** を選択します。
+1. 左側のナビゲーションで、**[ID ガバナンス]** を展開し、**[Privileged Identity Management]** を選択します。
 
-3. **[タスク]** で **[自分のロール]** を選択します。
+1. **[タスク]** で **[自分のロール]** を選択します。
 
-4. **[Microsoft Entra ロール]** タブを選択します。
+1. **[Microsoft Entra ロール]** タブを選択します。
 
-5. **[対象の割り当て]** で、**[条件付きアクセス管理者]** を検索し、**[アクティブ化]** を選択します。
+1. **[対象の割り当て]** で、**[条件付きアクセス管理者]** を検索し、**[アクティブ化]** を選択します。
 
-6. **[アクティブ化]** ペインで、次のように構成します。
+1. **[アクティブ化]** ペインで、次のように構成します。
 
     | 設定 | Value |
     |---------|-------|
     | **期間** | 1 時間 |
     | **妥当性** | `Reviewing and updating Conditional Access policies as part of a scheduled security review.` |
 
-7. **[アクティブ化]** を選びます。
+1. **[アクティブ化]** を選びます。
 
-    要求が承認待ちであることの確認が表示されます。 このロールはまだアクティブではありません。アクセスを許可するには **sc500-approver** の承認が必要です。
+    要求が承認待ちであることの確認が表示されます。 このロールはまだアクティブではありません。アクセスを許可する前に、**MOD 管理者**の承認が必要です。
 
-8. このブラウザー ウィンドウは開いたままにしてください。要求が承認された後に戻ってきます。
+1. このブラウザー ウィンドウは開いたままにしてください。要求が承認された後に戻ってきます。
 
 ---
 
 ## アクティブ化の要求を承認する
 
-では、**[sc500-approver]** アカウントに切り替え、保留中のアクティブ化の要求を承認します。
+次に、**MOD 管理者**のブラウザー ウィンドウに戻り、保留中のアクティブ化要求を承認します。
 
-1. メインのブラウザー ウィンドウに戻ります (MOD 管理者は現在ログインしています)。
+1. プライマリ ブラウザー ウィンドウに戻ります (現在 **MOD 管理者**としてログインしています)。
 
 1. Microsoft Entra 管理センターに移動します。
 
@@ -148,71 +144,70 @@ PIM のロール設定によって、アクティブ化の期間、理由が必�
 1. 要求の横のボックスにマークを追加し、**[承認]** を選択します。
 
 1. **[理由]** フィールドに、`Approved for scheduled security review task.` と入力します。
-    ```
 
-1. Select **Submit**.
+1. **送信**を選択します。
 
-    You should see an approval message pop-up.
+    承認メッセージのポップアップが表示されます。
 
-1. You can now minimize this browser window.
-
----
-
-## Verify the activated role
-
-Return to the **Adele Vance** browser window and verify that the role activation succeeded and grants the expected access.
-
-1. In the **Adele Vance** browser window, refresh the page.
-
-1. In **Privileged Identity Management > My roles > Microsoft Entra roles**, select the **Active assignments** tab.
-
-1. Confirm that **Conditional Access Administrator** appears with a status of **Active** and an expiration time approximately 1 hour from now.
-
-## Test the activation in Conditional Access
-
-1. Look at the menu on the left.
-
-1. In the left navigation, find the **Entra ID** section and select **Conditional Access**.
-
-1. Select **+ Create New policy** to open the policy creation pane.
-
-    > **Note**: If you can open the new policy pane, the role is active and granting the expected permissions. A user without this role would see an error or the option would be unavailable.
-
-1. Select **X** to close the policy pane without saving — creating a policy is not required for this verification step.
+1. これで、このブラウザー ウィンドウを最小化できます。
 
 ---
 
-## Deactivate the role
+## アクティブ化されたロールを確認する
 
-Just-in-time access means access should be released as soon as the task is complete — not held until the time window expires. You will now manually deactivate the Conditional Access Administrator role for **sc500-user01**.
+**Adele Vance** のブラウザー ウィンドウに戻って、ロールのアクティブ化が成功し、想定されるアクセスが許可されていることを確認します。
 
-1. Return to the **Administrator** browser window.
+1. **Adele Vance** のブラウザー ウィンドウで、ページを更新します。
 
-1. Navigate to **Privileged Identity Management > My roles > Microsoft Entra roles > Active assignments**.
+1. **[Privileged Identity Management] > [自分のロール] > [Microsoft Entra ロール]** で、**[アクティブな割り当て]** タブを選択します。
 
-1. Find the **Conditional Access Administrator** assignment and select **Deactivate**.
+1. **[条件付きアクセス管理者]** の状態が **[アクティブ]** であり、有効期限が現在から約 1 時間後であることを確認します。
 
-1. In the confirmation dialog, select **Deactivate** again.
+## 条件付きアクセスでアクティブ化をテストする
 
-1. Confirm the role no longer appears under **Active assignments** and has returned to **Eligible assignments** only.
+1. 左側のメニューを見てください。
 
-    The access window is now closed. If sc500-user01 needs to perform CA Admin tasks again, they must submit a new activation request.
+1. 左側のナビゲーションで **[Entra ID]** を見つけて、**[条件付きアクセス]** を選択します。
+
+1. **[+ 新規ポリシーの作成]** を選択して [ポリシーの作成] ペインを開きます。
+
+    > **注**: 新しい [ポリシー] ペインを開くことができる場合は、ロールがアクティブで、想定されるアクセス許可が付与されています。 このロールを持たないユーザーは、エラーが表示されるか、オプションを使用することができません。
+
+1. **[X]** を選択して、[ポリシー] ペインを保存せずに閉じます。この検証ステップでは、ポリシーを作成する必要はありません。
 
 ---
 
-## Summary
+## ロールを非アクティブ化する
 
-In this lab, you configured Privileged Identity Management to enforce just-in-time access to the Conditional Access Administrator role. You assigned an eligible role, configured activation settings with a time limit, justification requirement, and named approver, then walked through the full activation and approval workflow. You verified that the activated role granted the expected access, and manually deactivated the role to close the access window. You also enabled a system-assigned managed identity on an Azure App Service, establishing the pattern for workload identity that you will apply to Key Vault access in a later lab.
+Just-In-Time アクセスとは、アクセスを時間枠の期限が切れるまで保持せずに、タスクが完了した直後に解放する必要があることを意味します。 ここで、**Adele Vance** の条件付きアクセス管理者ロールを手動で非アクティブ化します。
 
-You have successfully completed this exercise.
+1. **Adele Vance** のブラウザー ウィンドウに戻ります ([自分のロール] には、現在サインイン中のユーザーの割り当てが表示されるため、非アクティブ化は、[MOD 管理者] ウィンドウではなく Adele のウィンドウから行う必要があります)。
 
-## Clean up
+1. **[Privileged Identity Management] > [自分のロール] > [Microsoft Entra ロール] > [アクティブな割り当て]** に移動します。
 
-The lab environment is automatically reset at the end of the session. No manual resource deletion is required.
+1. **[条件付きアクセス管理者]** 割り当てを見つけて、**[非アクティブ化]** を選択します。
 
-If you want to clean up the PIM assignment before the session ends:
+1. 確認ダイアログで、もう一度 **[はい]** を選択します。
 
-1. Sign in to the Entra admin center as your Global Administrator.
-1. Navigate to **Privileged Identity Management > Microsoft Entra roles > Assignments**.
-1. Find the **Conditional Access Administrator** eligible assignment for **sc500-user01**.
-1. Select **Remove** and confirm.
+1. そのロールが **[アクティブな割り当て]** に表示されなくなり、**[資格のある割り当て]** のみに戻されたことを確認します。
+
+    ここで、アクセス ウィンドウが閉じられます。 Adele は、CA 管理者タスクをもう一度実行する必要がある場合、新しいアクティブ化要求を送信する必要があります。
+
+---
+
+## まとめ
+
+このラボでは、条件付きアクセス管理者ロールに対して Just-In-Time アクセスを適用するように Privileged Identity Management を構成しました。 **Adele Vance** に資格のあるロールを割り当てて、制限時間、正当化の要件、名前付き承認者を使用してアクティブ化設定を構成し、アクティブ化と承認のワークフロー全体をひと通り説明しました。 アクティブ化されたロールによって想定どおりのアクセスが許可されたことを確認し、ロールを手動で無効化してアクセス ウィンドウを閉じました。
+
+この演習は無事に完了しました。
+
+## クリーンアップ
+
+ラボ環境は、セッション終了時に自動的にリセットされます。 手動でリソースを削除する必要はありません。
+
+セッションが終了する前に PIM 割り当てをクリーンアップする場合、次の手順を実行します。
+
+1. Entra 管理センターにグローバル管理者としてサインインします。
+1. **[Privileged Identity Management] > [Microsoft Entra ロール] > [割り当て]** に移動します。
+1. **Adele Vance** の**条件付きアクセス管理者**の資格のある割り当てを見つけます。
+1. **[削除]** を選択して確認します。

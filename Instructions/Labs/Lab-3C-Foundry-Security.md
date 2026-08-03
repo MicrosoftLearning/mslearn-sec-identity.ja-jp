@@ -13,8 +13,6 @@ lab:
 
 # ラボのセットアップ
 
-ラボ プロファイル - https://labondemand.com/LabProfile/217879
-
 このラボはクラウド スライス上で行います。 次のステップに従って、ラボのシナリオに必要な環境を構築してください。
 
 1. **Azure portal** (`https://portal.azure.com`) を開きます。
@@ -73,11 +71,13 @@ lab:
 
 ### API Management の構成をレビューする
 
+> **注**: 事前プロビジョニングされた API Management インスタンス名は **`sc500-lab3c-apim-`** で始まり、その後にラボ サブスクリプションに固有の 8 文字のサフィックスが続きます。 このラボ全体で、`<apim-name>` はそのインスタンスを参照します。 `sc500-lab3c-rg` リソース グループには API Management インスタンスが 1 つだけ含まれています。ラボで `<apim-name>` を指定する必要がある場合はいつでもそのインスタンスを選択します。
+
 1. [Azure portal](https://portal.azure.com) に**グローバル管理者**の資格情報を使用してサインインします。
 
 1. 検索バーで **API Management サービス**を検索して選択します。
 
-1. **sc500-lab3c-apim-@lab.LabInstance.Id** を選択して API Management インスタンスを開きます。
+1. 名前が **`sc500-lab3c-apim-`** で始まる API Management インスタンスを選択して開きます。
 
 1. 左側のメニューの **[API]** で、**[API]** を選択します。
 
@@ -117,7 +117,7 @@ Azure API Management では、言語モデル エンドポイントに特化し�
 
 このラボ用のポリシーの XML は、**Lab3-resources** フォルダーに用意されています。 これを APIM ポリシー エディターに直接貼り付けることができます。つまり、ポリシーの XML を記憶から書き起こす必要はありません。
 
-1. Azure portal で、**sc500-lab3c-apim-@lab.LabInstance.Id > [API] > sc500-foundry-api** に戻ります。
+1. Azure portal で、**`<apim-name>` > [API] > sc500-foundry-api** に戻ります。
 
 1. **[デザイン]** タブを選択し、**[すべての操作]** を選択します。
 
@@ -207,7 +207,7 @@ Foundry API エンドポイントへの匿名アクセスは、最優先で対�
 
     1. **Cloud Shell** を Azure portal のツール バーから開きます (`>_` アイコン)。
 
-    1. Cloud Shell プロンプトで、次に示すコマンドを実行します。`<your-key>` を自分のサブスクリプション キーで置き換え、`<your-apim-gateway-url>` を自分の APIM ゲートウェイ URL で置き換えてください (sc500-lab3c-apim-@lab.LabInstance.Id の概要ページの**ゲートウェイ URL** の下に表示されます)。
+    1. Cloud Shell プロンプトで、次に示すコマンドを実行します。`<your-key>` を自分のサブスクリプション キーで置き換え、`<your-apim-gateway-url>` を自分の APIM ゲートウェイ URL で置き換えてください (`<apim-name>` の概要ページの**ゲートウェイ URL** の下に表示されます)。
 
         ```bash
         for i in {1..10}; do curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://<your-apim-gateway-url>/sc500-foundry-api/chat/completions?api-version=2024-02-01" -H "Ocp-Apim-Subscription-Key: <your-key>" -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"Summarize the security risks of unprotected AI endpoints in 100 words."}],"max_tokens":100}'; done

@@ -19,7 +19,7 @@ lab:
 
 1. **Azure portal** (`https://portal.azure.com`) を開きます。
 
-1. **User-1** 管理者の役割でログインします。
+1. **User1** の管理者の役割でログオンします。
 
 1. **検索**バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
    
@@ -60,7 +60,7 @@ CISO には、今週デプロイされた AI ワークロード保護に関す�
 
 ## データと AI セキュリティ ダッシュボードを開く
 
-1. **全体管理者**資格情報を使用して、[Azure portal](https://portal.azure.com) にサインインします。
+1. **User1** の資格情報を使用して [Azure portal](https://portal.azure.com) にサインインします。
 
 1. 検索バーで、「**Microsoft Defender for Cloud**」を検索して選択します。
 
