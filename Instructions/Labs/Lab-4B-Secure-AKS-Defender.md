@@ -13,11 +13,11 @@ lab:
 
 # ラボのセットアップ
 
-このラボはクラウド スライス上で行います。 次のステップに従って、ラボのシナリオに必要な環境を構築してください。
+次のステップに従って、ラボのシナリオに必要な環境を構築してください。
 
 1. **Azure portal** (`https://portal.azure.com`) を開きます。
 
-1. **User-1** 管理者の役割でログインします。
+1. **User1** の管理者の役割でログオンします。
 
 1. **検索**バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
    
@@ -87,7 +87,7 @@ lab:
 
 ## Defender for Containers を有効にする
 
-1. [Azure portal](https://portal.azure.com) にグローバル管理者アカウントでサインインします。
+1. [Azure portal](https://portal.azure.com) に **User1** アカウントでサインインします。
 
 1. 検索バーで **Microsoft Defender for Cloud** を選択します。
 

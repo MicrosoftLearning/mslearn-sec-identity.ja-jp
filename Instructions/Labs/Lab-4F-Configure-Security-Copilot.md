@@ -50,11 +50,11 @@ lab:
 
 ## Security Copilot の容量をプロビジョニングする
 
-1. ご自分のグローバル管理者アカウントを使って [https://securitycopilot.microsoft.com](https://securitycopilot.microsoft.com) にサインインします。
+1. **User1** アカウントを使用して [https://securitycopilot.microsoft.com](https://securitycopilot.microsoft.com) にサインインします。
 
 1. 容量プロビジョニングのセットアップ フローを始めます。
 
-1. **米国東部**に **1 SCU** をプロビジョニングします。
+1. ラボ環境で別のリージョンの使用が指示されていない限り、**米国東部** で **1 SCU** をプロビジョニングします。
 
 1. プロビジョニングが完了し、ワークスペースが使用可能になったことを確認します。
 
@@ -62,7 +62,7 @@ lab:
 
     | フィールド | 値 |
     |-------|-------|
-    | リージョン | 米国東部 |
+    | リージョン | 米国東部 (ラボ環境で特に指示されている場合を除く) |
     | SCU 数 | 1 |
 
 ---
