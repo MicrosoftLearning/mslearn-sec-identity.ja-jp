@@ -38,7 +38,7 @@ Privileged Identity Management (PIM) は、Azure および Microsoft Entra の�
 
 このセクションでは、条件付きアクセス管理者ロールを資格のある割り当てとして **Adele Vance** に割り当てます。 適格な割り当ては、ユーザーがそのロールを永続的に保持するわけではなく、必要なたびに要求してアクティブ化しなければならないことを意味します。
 
-1. Microsoft Entra 管理センター (`https://entra.microsoft.com`) に **MOD 管理者** (サインイン名 `admin@<your-tenant>.onmicrosoft.com` と [リソース] タブの **[ユーザー パスワード]**) としてサインインします。
+1. 指定した認証情報 (サインイン名 `admin@<your-tenant>.onmicrosoft.com`) を使用して、Microsoft Entra 管理センター (`https://entra.microsoft.com`) に **MOD 管理者**としてサインインします。
 
 1. 左側のナビゲーションで、**[ID ガバナンス]** を展開し、**[Privileged Identity Management]** を選択します。
 
@@ -100,7 +100,7 @@ PIM のロール設定によって、アクティブ化の期間、理由が必�
 
 1. **InPrivate** または**プライベート** ブラウザー ウィンドウを開きます。
 
-1. `https://entra.microsoft.com` を使用して Entra 管理センターに移動します。 **Adele Vance** (サインイン名 `AdeleV@<your-tenant>.OnMicrosoft.com` と [リソース] タブの **[ユーザー パスワード]**) としてサインインします。
+1. `https://entra.microsoft.com` を使用して Entra 管理センターに移動します。 指定した認証情報 (サインイン名 `AdeleV@<your-tenant>.OnMicrosoft.com`) を使用して **Adele Vance** アカウントにサインインします。
 
 1. 左側のナビゲーションで、**[ID ガバナンス]** を展開し、**[Privileged Identity Management]** を選択します。
 
