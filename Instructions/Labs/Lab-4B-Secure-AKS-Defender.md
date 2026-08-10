@@ -1,7 +1,7 @@
 ---
 lab:
   title: AKS と Defender for Containers を使用してコンテナー ワークロードをセキュリティ保護する
-  description: Defender for Containers を事前プロビジョニング済みの AKS クラスターに対して有効にし、セキュリティ推奨事項を確認し、レジストリ イメージ スキャンを有効にし、Azure Container Registry に存在するアクセスとネットワーク セキュリティのギャップを修復します。
+  description: 事前にプロビジョニングされた AKS クラスターで Defender for Containers を有効にし、コンテナーとレジストリの監視を確認し、Azure Container Registry でのアクセスとネットワーク セキュリティのギャップを修復します。
   level: 300
   duration: 45
   islab: true
@@ -13,27 +13,64 @@ lab:
 
 # ラボのセットアップ
 
-このラボはクラウド スライス上で行います。 次のステップに従って、ラボのシナリオに必要な環境を構築してください。
+次の手順を完了してから、ラボで使用するリソースを展開し、コンテナー イメージをシードする演習を開始します。
 
-1. **Azure portal** (`https://portal.azure.com`) を開きます。
+1. **Azure portal ** (`https://portal.azure.com`) を開き、**User1** でサインインします。
 
-1. **User1** の管理者の役割でログオンします。
+1. ポータルの上部バーで、**[Cloud Shell]** アイコン (**>_**) を選択します。 ダイアログが表示されたら **[Bash]** と **[ストレージ アカウントは必要ありません]** を選択します。
 
-1. **検索**バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
-   
-1. **[Build your own template in the editor] \(エディターで独自のテンプレートをビルド\)** を選択します。
+1. Defender プランに必要な Microsoft.Security リソース プロバイダーを登録し、登録が完了するまで待ちます。
 
-1. メニューの **[ファイルを読み込む]** を選択します。
+    ```bash
+    az provider register --namespace Microsoft.Security --wait
+    az provider show --namespace Microsoft.Security --query registrationState -o tsv
+    ```
 
-1. デスクトップ フォルダーから **lab-4b-setup.json** ファイルを選択します。
+    出力が `Registered` であることを確認してから続行します。
 
-1. **[保存]** を選択します。
+1. **User2** と **User3** の資格情報を使い、各アカウントの正確なユーザー名をコピーします。 ロール割り当ての手順で両方のユーザー名を使用できるようにしておきます。
 
-1. **[確認と作成]** を選択します。
+1. Cloud Shell で `<User2-UPN>` と `<User3-UPN>` を正確なユーザー名に置き換え、両方のディレクトリ オブジェクト ID を解決します。
 
-    > **注**: デプロイが完了するまで数分かかる場合があります。
+    ```bash
+    USER2_UPN='<User2-UPN>'
+    USER3_UPN='<User3-UPN>'
 
-1. ブラウザーを閉じます。
+    USER2_OBJECT_ID=$(az ad user show --id "$USER2_UPN" --query id -o tsv)
+    USER3_OBJECT_ID=$(az ad user show --id "$USER3_UPN" --query id -o tsv)
+
+    test -n "$USER2_OBJECT_ID" || { echo "User2 could not be resolved in Microsoft Entra ID."; exit 1; }
+    test -n "$USER3_OBJECT_ID" || { echo "User3 could not be resolved in Microsoft Entra ID."; exit 1; }
+
+    echo "User2 object ID: $USER2_OBJECT_ID"
+    echo "User3 object ID: $USER3_OBJECT_ID"
+    ```
+
+1. 両方のオブジェクト ID をコピーします。 ポータル メンバー ピッカーがどちらのアカウントも返さない場合に備え、それらを使用できるようにしておきます。
+
+
+1. ポータル検索バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
+
+1. **[エディターで独自のテンプレートをビルド]** を選択してから **[ファイルの読み込み]** を選択します。
+
+1. ラボ VM の **F:\AllFiles\Lab-4B** フォルダーから **lab-4b-setup.json** を選択し、次に **[保存]** を選択します。
+
+
+1. **[確認と作成]** を選択し、次に **[作成]** を選択します。
+
+    > **注**: AKS のデプロイには、通常 5 から 10 分かかります。 デプロイが **[成功]** と表示されるまで待ってから続行します。
+
+1. Cloud Shell をもう一度開き、次のコマンドを実行して、生成されたレジストリ名を特定し、必要なイメージをインポートして、タグを確認します。
+
+    ```bash
+    ACR_NAME=$(az acr list --resource-group sc500-lab4b-rg --query "[0].name" -o tsv)
+    echo $ACR_NAME
+    test -n "$ACR_NAME" || { echo "No container registry was found in sc500-lab4b-rg."; exit 1; }
+    az acr import --name $ACR_NAME --source docker.io/library/nginx:1.19.0-alpine --image nginx:1.19.0-alpine --force
+    az acr repository show-tags --name $ACR_NAME --repository nginx --output table
+    ```
+
+1. 出力に `1.19.0-alpine` が含まれていることを確認し、表示されたレジストリ名をコピーしてから Cloud Shell を閉じます。
 
 ===
 
@@ -45,129 +82,144 @@ lab:
 - コンテナー レジストリの既知の脆弱性を見つけるためのスキャンが行われていません。
 - レジストリへのアクセス許可が過剰に付与されており、ネットワーク境界による制限もありません。
 
-このラボでは、これらのギャップを修復するために Defender for Containers を有効にし、推奨事項をレビューし、ACR での脆弱性スキャンを有効にし、ID とネットワークのコントロールを厳格化します。
+このラボでは、Defender for Containers の有効化、決定論的監視設定の確認、スキャン用の ACR イメージの準備、ID およびネットワーク制御の強化を通じてこれらのギャップを修復します。
 
 このラボでは、次のことを行います。
 
 - Defender for Containers をサブスクリプションに対して有効にします。
-- Defender for Cloud での AKS 監視対象範囲を確認します。
-- AKS のセキュリティに関する推奨事項をレビューして記録します。
-- イメージ脆弱性スキャンを ACR に対して有効にします。
-- 事前シードされたイメージについての CVE 発見事項をレビューします。
+- Defender for Cloud のコンテナーおよびレジストリの監視設定を確認します。
+- ACR イメージをインポートし、脆弱性スキャンが可能であることを確認します。
 - ACR 管理者ユーザーを無効にして、スコープを限定した RBAC ロールを割り当てます。
 - ACR ネットワーク アクセスを、承認済みのパブリック ネットワーク範囲に限定します。
 
 この演習の所要時間は約 **45** 分です。
 
-> **注**: このラボでは、サブスクリプション内の事前プロビジョニング済みリソースを使用します。これには `sc500-lab4b-aks` と `sc500lab4bacr` も含まれます。
+> **注**: このラボでは、事前プロビジョニングされた AKS クラスター `sc500-lab4b-aks`、仮想ネットワーク `sc500-lab4b-vnet`、名前が `sc500lab4bacr` で始まるコンテナー レジストリを使用します。 ラボ全体を通じて、`<acr-name>` は生成されたレジストリ名を表します。
 
 ---
 
 ## 事前構成済みの状態をレビューする
 
-> **新しいラボ環境のそれぞれについて講師セットアップが必要です**: Lab 4B インフラストラクチャ テンプレートを展開した後に、必要なイメージを ACR 内にシードするために次の Azure CLI コマンドを 1 回実行します。
->
-> `az acr import --name sc500lab4bacr --source docker.io/library/nginx:1.19.0-alpine --image nginx:1.19.0-alpine --force`
->
-> 確認コマンド (省略可能):
->
-> `az acr repository show-tags --name sc500lab4bacr --repository nginx --output table`
-
 1. Azure portal で **[リソース グループ]** を開いて **sc500-lab4b-rg** を選択します。
 
-1. 次に示すリソースが存在することを確認します。
+1. リソース グループに次のものが含まれていることを確認します。
 
     - **sc500-lab4b-aks**
-    - **sc500lab4bacr**
     - **sc500-lab4b-vnet**
+    - 名前が **sc500lab4bacr** で始まる 1 つのコンテナー レジストリ
 
-1. **sc500lab4bacr** を開いて、`nginx:1.19.0-alpine` イメージがレジストリに存在していることを確認します。
+1. **<acr-name>** を開き、**[サービス]** > **[リポジトリ]** を選択し、次に **[nginx]** を選択します。
+
+1. **[1.19.0-alpine]** タグが存在していることを確認します。
 
 ---
 
 ## Defender for Containers を有効にする
 
-1. [Azure portal](https://portal.azure.com) に **User1** アカウントでサインインします。
+1. Azure portal で **Microsoft Defender for Cloud** を開きます。
 
-1. 検索バーで **Microsoft Defender for Cloud** を選択します。
-
-1. **[環境設定]** を選択します。
+1. **[管理]** を展開し、**[環境設定]** を選択し、**[すべてを展開]** を選択します。
 
 1. アクティブなラボ サブスクリプションを選択します。
 
-1. **[Defender プラン]** ページで、**[コンテナー]** を **[オン]** にします。
+1. **[設定]、[Defender プラン]** で、**[コンテナー]** を **[オン]** に設定して、**[保存]** を選択します。
 
-1. **[保存]** を選択します。
-
-1. **Defender for Cloud** に戻り、コンテナー プランがサブスクリプションに対して有効であると表示されていることを確認します。
+1. 成功通知が表示され、**[コンテナー]** 行の **[監視カバレッジ]** の下に **[完全]** と表示されていることを確認します。
 
 ---
 
-## AKS の対象範囲と推奨事項を確認する
+## コンテナーとレジストリ監視の検証
 
-1. Defender for Cloud で、**[インベントリ]** または **[アセット]** にアクセスして **sc500-lab4b-aks** を見つけます。
+1. **[コンテナー]** 行で、リソースの数量に 1 つのコンテナー レジストリと、**sc500-lab4b-aks** からの Kubernetes コアが含まれていることを確認します。
 
-1. **sc500-lab4b-aks** をリストから選択してクラスター リソースを開きます。 Defender for Containers の対象となっていることを確認します。
+1. **[コンテナー]** プランの **[設定 >]** を選択します。
 
-1. **[推奨事項]** に移動します。
+1. **[設定と監視]** で、**[レジストリ アクセス]** が **[オン]** に設定され、その構成に **[セキュリティの結果: オン]** と表示されていることを確認します。
 
-1. フィルターでリソース名 **sc500-lab4b-aks** を指定して絞り込みます。
+1. **[続行]** を選択して Defender プランのページに戻り、ボタンが有効になっている場合は、**[保存]** を選択します。
 
-1. 推奨事項の記事を参照してください。
+1. **<acr-name>** に戻り、**[サービス]** > **[リポジトリ]** > **[nginx]** の順に選択し、**[1.19.0-alpine]** タグを選択します。
 
-1. **推奨事項**を 1 つ選択し、各推奨事項の修復ガイダンスをレビューします。
+1. イメージ メタデータが正常に開くことを確認します。
 
----
-
-## ACR 脆弱性スキャンを有効にして発見事項を検証する
-
-1. Azure portal で **Microsoft Defender for Cloud** を開きます。
-
-1. **[環境設定]** に移動し、自分のラボ サブスクリプションを選択します。
-
-1. **[Defender プラン]** (または **[Defender プラン カバレッジ]**) を選択し、**[コンテナー]** プランの **[設定]** を選択します。
-
-1. **[レジストリ アクセス]** をオンにし、**[セキュリティ発見事項]** が有効になっていることを確認します。
-
-1. **[続行]** を選択して Defender プランのページに戻り、**[保存]** を選択します。
-
-1. Azure portal のホームに戻り、**[コンテナー レジストリ]** を開いてから **sc500lab4bacr** を選択します。
-
-1. **[サービス]** > **[リポジトリ]** を開き、**[nginx]** を選択し、**1.19.0-alpine** タグを選択します。
-
-1. このレジストリ イメージの脆弱性の証拠がある場合はレビューします。
-
-1. **[コンテナー レジストリ]** を閉じて **Microsoft Defender for Cloud** を開きます。
-
-1. 推奨事項のページに移動し、フィルターを使用して **sc500lab4bacr** を見つけます。
+> [!NOTE]
+> Defender の推奨事項やイメージ脆弱性の検出結果は非同期に生成され、新規サブスクリプションに表示されるまでに最大 24 時間かかることがあります。 これらは、このラボを完了させるうえで必要ありません。 結果が利用可能な場合は、必要に応じて、**[Microsoft Defender for Cloud]** > **[推奨事項]** から **sc500-lab4b-aks** または **<acr-name>** でフィルター処理すると確認できます。
 
 ---
 
 ## ACR アクセス制御を適用する
 
-1. **sc500lab4bacr** の画面で、**[設定]** > **[アクセス キー]** を開きます。
+1. **<acr-name>** で **[設定]** > **[アクセス キー]** を開きます。
 
 1. **[管理者ユーザー]** を **[無効]** に設定するために、そのチェックボックスを**オフ**にします。
 
-1. **sc500lab4bacr** の **[アクセス制御 (IAM)]** を開きます。
+1. **<acr-name>** の **[アクセス制御 (IAM)]** を開きます。
 
 1. **[+ 追加]** > **[ロールの割り当ての追加]** の順に選択します。
 
 1. **[ロール]** タブで **[AcrPull]** を選択してから **[次へ]** を選択します。
 
-1. **[メンバー]** タブで、**[ユーザー、グループ、またはサービス プリンシパル]** を選択し、**[+ メンバーの選択]** を選択し、**[User2]** を選択して、**[確認と割り当て]** を選択します。
+1. **[メンバー]** タブで、**[ユーザー、グループ、またはサービス プリンシパル]** を選択してから、**[+ メンバーの選択]** を選択します。
+
+1. 先ほどコピーした正確な **User2** ユーザー名を貼り付けます。 マッチするアカウントが表示されたら、それを選択し、**[レビューと割り当て]** を選択します。
 
 1. このロール割り当てのプロセスを繰り返します。**[+ 追加]** > **[ロールの割り当ての追加]** を選択し、**[AcrPush]** を選択して **[次へ]** を選択します。
 
-1. **[メンバー]** タブで、**[ユーザー、グループ、またはサービス プリンシパル]** を選択し、**[+ メンバーの選択]** を選択し、**[User3]** を選択して、**[確認と割り当て]** を選択します。
+1. **[メンバー]** タブで、**[ユーザー、グループ、またはサービス プリンシパル]** を選択してから、**[+ メンバーの選択]** を選択します。
 
-1. 両方の割り当てがロール割り当てに表示されていることを確認します。
+1. 先ほどコピーした正確な **User3** ユーザー名を貼り付けます。 マッチするアカウントが表示されたら、それを選択し、**[レビューと割り当て]** を選択します。
+
+1. どちらのメンバー ピッカーも一致するアカウントを返さない場合は、Cloud Shell を開き、次のフォールバックを実行します。 `<acr-name>`、`<User2-object-id>`、`<User3-object-id>` を、先程コピーした値に置き換えます。 コマンドでは、不足している割り当てのみが作成されます。
+
+    ```bash
+    ACR_NAME='<acr-name>'
+    USER2_OBJECT_ID='<User2-object-id>'
+    USER3_OBJECT_ID='<User3-object-id>'
+    ACR_ID=$(az acr show --name "$ACR_NAME" --query id -o tsv)
+    test -n "$ACR_ID" || { echo "The container registry could not be resolved."; exit 1; }
+
+    USER2_ASSIGNMENT_COUNT=$(az role assignment list \
+      --scope "$ACR_ID" \
+      --query "[?principalId=='$USER2_OBJECT_ID' && roleDefinitionName=='AcrPull'] | length(@)" \
+      -o tsv)
+
+    if [ "$USER2_ASSIGNMENT_COUNT" = "0" ]; then
+      az role assignment create \
+        --assignee-object-id "$USER2_OBJECT_ID" \
+        --assignee-principal-type User \
+        --role AcrPull \
+        --scope "$ACR_ID"
+    fi
+
+    USER3_ASSIGNMENT_COUNT=$(az role assignment list \
+      --scope "$ACR_ID" \
+      --query "[?principalId=='$USER3_OBJECT_ID' && roleDefinitionName=='AcrPush'] | length(@)" \
+      -o tsv)
+
+    if [ "$USER3_ASSIGNMENT_COUNT" = "0" ]; then
+      az role assignment create \
+        --assignee-object-id "$USER3_OBJECT_ID" \
+        --assignee-principal-type User \
+        --role AcrPush \
+        --scope "$ACR_ID"
+    fi
+
+    az role assignment list \
+      --scope "$ACR_ID" \
+      --query "[?roleDefinitionName=='AcrPull' || roleDefinitionName=='AcrPush'].{Role:roleDefinitionName,Principal:principalName}" \
+      -o table
+    ```
+
+1. **[アクセス制御 (IAM)]** > **[ロールの割り当て]** に戻り、**[更新]** を選択して両方の割り当てを確認します:
+
+    - 正確な User2 アカウントは **AcrPull**。
+    - 正確な User3 アカウントは **AcrPush**。
 
 ---
 
 ## ACR ネットワーク アクセスを制限する
 
-1. **sc500lab4bacr** の画面で **[設定]** > **[ネットワーク]** を開きます。
+1. **<acr-name>** で、**[設定]** > **[ネットワーク]** の順に開きます。
 
 1. **[パブリック アクセス]** タブの **[パブリック ネットワーク アクセス]** で、**[選択されたネットワーク]** を選択します。
 
@@ -188,11 +240,11 @@ lab:
 
 ## まとめ
 
-このラボでは、AKS 実行時の状態を可視化するために Defender for Containers を有効にし、クラスターに関する推奨事項をレビューし、ACR イメージ脆弱性スキャンを有効にし、レジストリ内の ID とネットワークの露出を修復しました。
+このラボでは、Defender for Containers を有効にし、コンテナーとレジストリの監視カバレッジを検証し、脆弱性スキャン用のレジストリ イメージを作成し、レジストリ内の ID とネットワークの露出を修復しました。
 
 これで、コンテナー ワークロードに対するセキュリティ態勢は次のとおりに多層化されました。
 
 - 実行時の状態と構成を Defender for Containers で可視化する。
-- イメージの脆弱性をデプロイ前に可視化する。
+- Defender のインジェスト後に脆弱性の可視化のために構成されたレジストリ イメージの監視。
 - レジストリへの最小特権アクセスを RBAC で付与する。
 - 外部への露出をネットワーク制限で縮小する。
