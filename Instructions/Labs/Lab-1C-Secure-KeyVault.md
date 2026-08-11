@@ -13,27 +13,33 @@ lab:
 
 # ラボのセットアップ
 
-次のステップに従って、ラボのシナリオに必要な環境を構築してください。
+ラボで使用されるリソースを展開するには、次の手順に従います。
 
-1. **Azure portal** (`https://portal.azure.com`) を開きます。
+1. **Azure portal ** (`https://portal.azure.com`) を開き、**User1** でサインインします。
 
-1. **User1** の管理者の役割でログオンします。
+1. ポータルの上部バーで、**[Cloud Shell]** アイコン (**>_**) を選択します。 ダイアログが表示されたら **[Bash]** と **[ストレージ アカウントは必要ありません]** を選択します。
 
-1. **検索**バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
-   
-1. **[Build your own template in the editor] \(エディターで独自のテンプレートをビルド\)** を選択します。
+1. Microsoft.Security リソース プロバイダーを登録し、リソース グループを作成します:
 
-1. メニューの **[ファイルを読み込む]** を選択します。
+    ```bash
+    az provider register --namespace Microsoft.Security --wait
+    az provider show --namespace Microsoft.Security --query registrationState -o tsv
+    az group create --name sc500-lab1c-rg --location centralus --output table
+    ```
 
-1. ラボ VM の **F:\AllFiles\Lab-1C** フォルダーからファイル **deploy-lab1c-vnet.json** を選択します。
+1. プロバイダーの状態が `Registered` であることを確認してから、Cloud Shell を閉じます。
 
-1. **[保存]** を選択します。
+1. ポータル検索バーで、「**カスタム テンプレートのデプロイ**」を検索して開きます。
 
-1. **[確認と作成]** を選択します。
+1. **[エディターで独自のテンプレートをビルド]** を選択してから **[ファイルの読み込み]** を選択します。
 
-    > **注**: デプロイが完了するまで数分かかる場合があります。
+1. ラボ VM の **F:\AllFiles\Lab-1C** フォルダーからファイル **deploy-lab1c-vnet.json** を選択して、**[保存]** を選択します。
 
-1. ブラウザーを閉じます。
+1. **[基本]** ページで、既存のリソース グループ **sc500-lab1c-rg** を選択し、**[地域]** が `centralus` であることを確認します。
+
+1. **[確認と作成]** を選択し、次に **[作成]** を選択します。
+
+1. デプロイが **[成功]** と表示されるまで待ってから続行します。
 
 ===
 
@@ -266,15 +272,11 @@ Azure Key Vault は、**資格情報コンテナー アクセス ポリシー** 
 
 1. **User1** アカウントとして Azure portal (`https://portal.azure.com`) にサインインしていることを確認します。 前のセクションの InPrivate ウィンドウがまだ有効であれば、まずそれを閉じます。
 
-1. Azure portal の上部バーで、**Cloud Shell** アイコン (>_) を選択します。 シェルの種類を選択するように求められたら、**[Bash]** を選択します。
+1. **[App Services]** を開き、**<app-service-name>** を選択します。
 
-1. Linux App Service コンテナーで SSH セッションを開くには、次のコマンドを実行します。
+1. **[開発ツール]** で **[SSH]** を選択し、次に **[移動]** を選択します。
 
-    ```bash
-    az webapp ssh --resource-group sc500-lab1c-rg --name <app-service-name>
-    ```
-
-    プロンプトが変更され、コマンドが App Service コンテナー内で実行されていることが示されるまで待ちます。
+    [Web SSH] タブが開き、**SSH CONNECTION ESTABLISHED** と表示されます。 残りの Bash コマンドは、この Web SSH 端末で実行します。
 
 1. マネージド ID 環境変数が存在することを確認するために、次のコマンドを実行します。
 

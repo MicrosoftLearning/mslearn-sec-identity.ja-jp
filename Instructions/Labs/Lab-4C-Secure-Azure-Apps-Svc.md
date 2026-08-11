@@ -3,7 +3,7 @@ lab:
   title: Azure アプリ Services と API Management をセキュリティで保護する
   description: WAF の検出と防止の制御を使用し、App Services に対して Microsoft Entra 認証とネットワーク制限を構成し、API Management で API サブスクリプション キー保護を適用します。
   level: 300
-  duration: 45
+  duration: 60
   islab: true
   primarytopics:
     - Web Application Firewall (WAF)
@@ -23,6 +23,8 @@ lab:
 1. **[エディターで独自のテンプレートをビルド]** を選択してから **[ファイルの読み込み]** を選択します。
 
 1. ラボ VM の **F:\AllFiles\Lab-4C** フォルダーから **lab-4c-setup.json** を選択し、次に **[保存]** を選択します。
+
+1. **[基本]** ページで、**[地域]** が `centralus` に設定されていることを確認します。
 
 
 1. **[確認と作成]** を選択し、次に **[作成]** を選択します。
@@ -50,7 +52,7 @@ lab:
 - API Management でサブスクリプションに必要なアクセスを構成します。
 - キーに必要な API の動作を検証します。
 
-この演習の所要時間は約 **45** 分です。
+この演習の所要時間は約 **60** 分です。
 
 > **注**: このラボでは、固定の Application Gateway `sc500-lab4c-agw` と、名前が `sc500-lab4c-apim-`、`sc500-lab4c-webapp-`、`sc500-lab4c-func-` で始まる生成されたサービスを使用します。 ラボ全体を通じて、`<apim-name>`、`<web-app-name>`、`<function-app-name>` はこれらのリソースを表します。 `sc500-lab4c-rg` リソース グループには、各サービス タイプが正確に 1 つずつ含まれています。
 
@@ -101,6 +103,8 @@ lab:
     | sort by TimeGenerated desc
     ```
 
+1. 診断データが届くまで最大 **10 分** 待ちます。 要求が表示されるまで 1、2 分ごとにクエリの実行をやり直します。
+
 1. 要求が検出モードでログに記録されていることを確認します。
 
 ---
@@ -130,17 +134,72 @@ lab:
 
 1. **[App Services]** を開き、**<web-app-name>** を選択します。
 
-1. **[認証]** を開きます。
+1. **[認証]** を開き、**[ID プロバイダーを追加]** を選択します。
 
-1. 認証を **[オン]** にします。
+1. **[ID プロバイダー]** で、**[Microsoft]** を選択します。
 
-1. **[ID プロバイダー]** を Microsoft Entra ID に設定します。
+1. プロバイダーを次のように構成します。
 
-1. 認証されていない要求の動作を設定して、サインインにリダイレクトします。
+    | 設定 | Value |
+    |---------|-------|
+    | **テナント構成** | ワークフォース構成 (現在のテナント) |
+    | **アプリの登録の種類** | 新しいアプリ登録を作成する |
+    | **サポートされているアカウントの種類** | 現在のテナント - 単一テナント |
+    | **アクセスの制限** | 認証を必須にする |
+    | **認証されていない要求** | HTTP 302 Found リダイレクト |
+    | **リダイレクト先** | Microsoft |
 
-1. 構成を保存します。
+1. **[追加]** を選択します。 Microsoft の ID プロバイダーが一覧に表示されていて、認証が有効になっていることを確認します。
 
-1. プライベート ブラウザー ウィンドウでアプリの URL を開き、サインインが必要であることを確認します。
+1. プロバイダー作成が失敗したり、ページ上でシークレットの欠落が報告されたりした場合は、Cloud Shell を使って同じプロバイダーを設定します。 `<web-app-name>` を生成された App Service 名に置き換えます。
+
+    ```bash
+    WEB_APP_NAME='<web-app-name>'
+    TENANT_ID=$(az account show --query tenantId -o tsv)
+    APP_URL="https://$WEB_APP_NAME.azurewebsites.net"
+
+    APP_ID=$(az ad app create \
+      --display-name "$WEB_APP_NAME-auth" \
+      --sign-in-audience AzureADMyOrg \
+      --web-redirect-uris "$APP_URL/.auth/login/aad/callback" \
+      --query appId -o tsv)
+
+    CLIENT_SECRET=$(az ad app credential reset \
+      --id "$APP_ID" \
+      --append \
+      --display-name app-service-auth \
+      --query password -o tsv)
+
+    test -n "$APP_ID" || { echo "The app registration could not be created."; exit 1; }
+    test -n "$CLIENT_SECRET" || { echo "The client secret could not be created."; exit 1; }
+
+    az webapp config appsettings set \
+      --resource-group sc500-lab4c-rg \
+      --name "$WEB_APP_NAME" \
+      --settings MICROSOFT_PROVIDER_AUTHENTICATION_SECRET="$CLIENT_SECRET" \
+      --output none
+
+    SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+    AUTH_BODY=$(jq -n \
+      --arg clientId "$APP_ID" \
+      --arg issuer "https://sts.windows.net/$TENANT_ID/v2.0" \
+      '{properties:{platform:{enabled:true,runtimeVersion:"~1"},globalValidation:{requireAuthentication:true,unauthenticatedClientAction:"RedirectToLoginPage",redirectToProvider:"azureactivedirectory"},identityProviders:{azureActiveDirectory:{enabled:true,registration:{openIdIssuer:$issuer,clientId:$clientId,clientSecretSettingName:"MICROSOFT_PROVIDER_AUTHENTICATION_SECRET"}}},login:{tokenStore:{enabled:true}}}}')
+
+    az rest --method put \
+      --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/sc500-lab4c-rg/providers/Microsoft.Web/sites/$WEB_APP_NAME/config/authsettingsV2?api-version=2022-03-01" \
+      --body "$AUTH_BODY" \
+      --output none
+
+    az rest --method get \
+      --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/sc500-lab4c-rg/providers/Microsoft.Web/sites/$WEB_APP_NAME/config/authsettingsV2?api-version=2022-03-01" \
+      --query '{Enabled:properties.platform.enabled,UnauthenticatedAction:properties.globalValidation.unauthenticatedClientAction}' \
+      --output table
+
+    unset CLIENT_SECRET AUTH_BODY
+    ```
+
+1. 認証設定が伝達されるまで、最大 **2 分** 待ちます。 プライベート ブラウザー ウィンドウでアプリの URL を開き、Microsoft サインインにリダイレクトされることを確認します。
 
 ---
 
@@ -178,20 +237,16 @@ lab:
 
 1. テスト サブスクリプションを作成または開き、キーをコピーします。
 
-1. キーを使用してテストします (成功が期待されます)。
+1. 鍵を使用してテストします。 `Ocp-Apim-Subscription-Key` ヘッダーを含め、モック API から HTTP **200** が返されることを確認します。
 
-    - ヘッダー `Ocp-Apim-Subscription-Key` を含めます。
-
-1. キーなしでテストします (拒否が期待されます)。
-
-    - サブスクリプション キー ヘッダーを削除します。
+1. 鍵を使用せずにテストします。 サブスクリプション キーのヘッダーを削除し、APIM から HTTP **401** が返されることを確認します。
 
 1. ノートに結果を記録します。
 
     | 要求の種類 | 予想される結果 |
     |--------------|-----------------|
-    | With key | Success |
-    | キーなし | 未承認/拒否 |
+    | With key | HTTP 200 |
+    | キーなし | HTTP 401 |
 
 ---
 
